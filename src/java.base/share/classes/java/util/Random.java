@@ -32,7 +32,7 @@ import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
-import jdk.internal.util.random.RandomSupport.*;
+import jdk.internal.util.ByteArray;
 
 import static jdk.internal.util.random.RandomSupport.*;
 
@@ -466,10 +466,15 @@ public class Random implements RandomGenerator, java.io.Serializable {
      */
     @Override
     public void nextBytes(byte[] bytes) {
-        for (int i = 0, len = bytes.length; i < len; )
-            for (int rnd = nextInt(),
-                 n = Math.min(len - i, Integer.SIZE/Byte.SIZE);
-                 n-- > 0; rnd >>= Byte.SIZE)
+        int i = 0;
+        int len = bytes.length;
+        for (int words = len >> 2; words-- > 0; ) {
+            int rnd = nextInt();
+            ByteArray.setInt(bytes, i, rnd);
+            i += Integer.BYTES;
+        }
+        if (i < len)
+            for (int rnd = nextInt(); i < len; rnd >>>= Byte.SIZE)
                 bytes[i++] = (byte)rnd;
     }
 

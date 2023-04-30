@@ -29,6 +29,8 @@ import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
+
+import jdk.internal.util.ByteArray;
 import jdk.internal.util.random.RandomSupport;
 import jdk.internal.util.random.RandomSupport.*;
 
@@ -476,15 +478,15 @@ public interface RandomGenerator {
      * @throws NullPointerException if bytes is null
      *
      * @implSpec The default implementation produces results from repeated calls
-     * to {@link nextLong()}.
+     * to {@link #nextLong()}.
      */
     default void nextBytes(byte[] bytes) {
         int i = 0;
         int len = bytes.length;
-        for (int words = len >> 3; words--> 0; ) {
+        for (int words = len >> 3; words-- > 0; ) {
             long rnd = nextLong();
-            for (int n = 8; n--> 0; rnd >>>= Byte.SIZE)
-                bytes[i++] = (byte)rnd;
+            ByteArray.setLong(bytes, i, rnd);
+            i += Long.BYTES;
         }
         if (i < len)
             for (long rnd = nextLong(); i < len; rnd >>>= Byte.SIZE)
