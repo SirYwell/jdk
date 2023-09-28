@@ -26,6 +26,8 @@
 #define SHARE_RUNTIME_REFLECTIONUTILS_HPP
 
 #include "memory/allStatic.hpp"
+#include "oops/fieldStreams.hpp"
+#include "oops/fieldStreams.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oopsHierarchy.hpp"
@@ -123,31 +125,65 @@ class FieldStream : public KlassStream {
   int length();
 
   fieldDescriptor _fd_buf;
+  GrowableArrayCHeap<FieldInfo, mtServiceability>* _field_info_cache;
+
+  // cache FieldInfo entries for current klass
+  void build_field_info_cache() {
+    int field_count = length();
+    FreeHeap((void*) _field_info_cache);
+    _field_info_cache = new GrowableArrayCHeap<FieldInfo, mtServiceability>(field_count);
+    /* if (_field_info_cache == nullptr) {
+      _field_info_cache = new GrowableArrayCHeap<FieldInfo, mtServiceability>(field_count);
+    } else {
+      _field_info_cache->clear();
+      _field_info_cache->reserve(field_count);
+    } */
+    // consider only Java fields, in sync with FieldStream::length
+    int index = 0;
+    for (JavaFieldStream jfs(_klass); !jfs.done(); jfs.next()) {
+      _field_info_cache->push(jfs.to_FieldInfo());
+    }
+  }
+  
 
  public:
   FieldStream(InstanceKlass* klass, bool local_only, bool classes_only)
     : KlassStream(klass, local_only, classes_only, false) {
+    _field_info_cache = nullptr;
     _index = length();
     next();
   }
 
-  void next() { _index -= 1; }
+  ~FieldStream() {
+    FreeHeap((void*)_field_info_cache);
+  }
+
+  void next() {
+    if (length() == _index) { // before first iteration for current klass
+      build_field_info_cache();
+    }
+     _index -= 1; 
+  }
 
   // Accessors for current field
   AccessFlags access_flags() const {
-    AccessFlags flags;
+/*     AccessFlags flags;
     flags.set_flags(_klass->field_access_flags(_index));
-    return flags;
+    return flags; */
+    return _field_info_cache->at(_index).access_flags();
   }
   Symbol* name() const {
-    return _klass->field_name(_index);
+    return _field_info_cache->at(_index).name(_klass->constants());
+    // return _klass->field_name(_index);
   }
   Symbol* signature() const {
-    return _klass->field_signature(_index);
+    return _field_info_cache->at(_index).signature(_klass->constants());
+    // return _klass->field_signature(_index);
   }
   // missing: initval()
   int offset() const {
-    return _klass->field_offset( index() );
+    return _field_info_cache->at(_index).offset();
+    // return _klass->field_offset( index() );
   }
   // bridge to a heavier API:
   fieldDescriptor& field_descriptor() const {
