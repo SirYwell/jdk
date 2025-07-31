@@ -33,6 +33,7 @@
 
 package compiler.vectorapi;
 
+import compiler.lib.generators.Generators;
 import compiler.lib.ir_framework.*;
 import jdk.incubator.vector.*;
 import jdk.test.lib.Asserts;
@@ -46,6 +47,8 @@ public class VectorMaskFromLongTest {
     static final VectorSpecies<Double> D_SPECIES = DoubleVector.SPECIES_MAX;
 
     static boolean[] mr = new boolean[B_SPECIES.length()];
+
+    static final long RANDOM_MASK = Generators.G.longs().next();
 
     @ForceInline
     public static void maskFromLongKernel(VectorSpecies<?> species, long inputLong) {
@@ -82,6 +85,10 @@ public class VectorMaskFromLongTest {
         testMaskFromLong(species, inputLong);
 
         inputLong = (-1L >>> (64 - vlen));
+        testMaskFromLong(species, inputLong);
+
+        // restrict range to [-1, 0]
+        inputLong = Math.max(-1, Math.min(0, RANDOM_MASK));
         testMaskFromLong(species, inputLong);
     }
 

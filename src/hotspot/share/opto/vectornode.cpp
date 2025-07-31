@@ -434,14 +434,19 @@ bool VectorNode::implemented(int opc, uint vlen, BasicType bt) {
   return false;
 }
 
-bool VectorNode::is_maskall_type(const TypeLong* type, int vlen) {
+MaskAllVariant VectorNode::get_maskall_type(const TypeLong* type, int vlen) {
   assert(type != nullptr, "type must not be null");
-  if (!type->is_con()) {
-    return false;
+  ulong mask = (-1ULL >> (64 - vlen));
+  if ((type->_bits._ones & mask) == mask) {
+    return MaskAllTrue;
   }
-  long mask = (-1ULL >> (64 - vlen));
-  long bit  = type->get_con() & mask;
-  return bit == 0 || bit == mask;
+  if ((type->_bits._zeros & mask) == mask) {
+    return MaskAllFalse;
+  }
+  if (type->_lo == -1 && type->_hi == 0) {
+    return MaskAllEither;
+  }
+  return MaskAllNone;
 }
 
 bool VectorNode::is_muladds2i(const Node* n) {
@@ -1514,22 +1519,31 @@ Node* ReductionNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 }
 
 // Convert fromLong to maskAll if the input sets or unsets all lanes.
-Node* convertFromLongToMaskAll(PhaseGVN* phase, const TypeLong* bits_type, bool is_mask, const TypeVect* vt) {
+Node* convertFromLongToMaskAll(PhaseGVN* phase, Node* bits_node, bool is_mask, const TypeVect* vt) {
+  const TypeLong* bits_type = phase->type(bits_node)->isa_long();
+  if (bits_type == nullptr) {
+    return nullptr;
+  }
   uint vlen = vt->length();
   BasicType bt = vt->element_basic_type();
   // The "maskAll" API uses the corresponding integer types for floating-point data.
   BasicType maskall_bt = (bt == T_FLOAT) ? T_INT : (bt == T_DOUBLE) ? T_LONG : bt;
 
-  if (VectorNode::is_maskall_type(bits_type, vlen) &&
+  MaskAllVariant mask_all_variant = VectorNode::get_maskall_type(bits_type, vlen);
+  if (mask_all_variant != MaskAllNone &&
       Matcher::match_rule_supported_vector(Op_Replicate, vlen, maskall_bt)) {
-    Node* con = nullptr;
-    jlong con_value = bits_type->get_con() == 0L ? 0L : -1L;
-    if (maskall_bt == T_LONG) {
-      con = phase->longcon(con_value);
+    Node* in = nullptr;
+    if (mask_all_variant == MaskAllTrue) {
+      in = phase->longcon(-1L);
+    } else if (mask_all_variant == MaskAllFalse) {
+      in = phase->longcon(0L);
     } else {
-      con = phase->intcon(con_value);
+      in = bits_node;
     }
-    Node* res = VectorNode::scalar2vector(con, vlen, maskall_bt, is_mask);
+    if (maskall_bt != T_LONG) {
+      in = phase->transform(new ConvL2INode(in));
+    }
+    Node* res = VectorNode::scalar2vector(in, vlen, maskall_bt, is_mask);
     // Convert back to the original floating-point data type.
     if (is_floating_point_type(bt)) {
       res = new VectorMaskCastNode(phase->transform(res), vt);
@@ -1543,7 +1557,7 @@ Node* VectorLoadMaskNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   // VectorLoadMask(VectorLongToMask(-1/0)) => Replicate(-1/0)
   if (in(1)->Opcode() == Op_VectorLongToMask) {
     const TypeVect* vt = bottom_type()->is_vect();
-    Node* res = convertFromLongToMaskAll(phase, in(1)->in(1)->bottom_type()->isa_long(), false, vt);
+    Node* res = convertFromLongToMaskAll(phase, in(1)->in(1), false, vt);
     if (res != nullptr) {
       return res;
     }
@@ -2041,9 +2055,8 @@ Node* VectorLongToMaskNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   }
 
   // VectorLongToMask(-1/0) => MaskAll(-1/0)
-  const TypeLong* bits_type = in(1)->bottom_type()->isa_long();
-  if (bits_type && is_mask) {
-    Node* res = convertFromLongToMaskAll(phase, bits_type, true, dst_type);
+  if (is_mask) {
+    Node* res = convertFromLongToMaskAll(phase, in(1), true, dst_type);
     if (res != nullptr) {
       return res;
     }

@@ -692,7 +692,7 @@ bool LibraryCallKit::inline_vector_frombits_coerced() {
     // The "maskAll" API uses the corresponding integer types for floating-point data.
     BasicType maskall_bt = elem_bt == T_DOUBLE ? T_LONG : (elem_bt == T_FLOAT ? T_INT: elem_bt);
     if (!(opc == Op_VectorLongToMask &&
-          VectorNode::is_maskall_type(bits_type, num_elem) &&
+          VectorNode::get_maskall_type(bits_type, num_elem) != MaskAllNone &&
           arch_supports_vector(Op_Replicate, num_elem, maskall_bt, checkFlags, true /*has_scalar_args*/))) {
       log_if_needed("  ** not supported: arity=0 op=broadcast vlen=%d etype=%s ismask=%d bcast_mode=%d",
                       num_elem, type2name(elem_bt),

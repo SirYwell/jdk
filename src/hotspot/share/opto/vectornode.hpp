@@ -33,6 +33,12 @@
 #include "opto/opcodes.hpp"
 #include "prims/vectorSupport.hpp"
 
+enum MaskAllVariant {
+  MaskAllNone,
+  MaskAllTrue,
+  MaskAllFalse,
+  MaskAllEither
+};
 //------------------------------VectorNode-------------------------------------
 // Vector Operation
 class VectorNode : public TypeNode {
@@ -104,7 +110,7 @@ class VectorNode : public TypeNode {
   static bool implemented(int opc, uint vlen, BasicType bt);
   static bool is_shift(Node* n);
   static bool is_vshift_cnt(Node* n);
-  static bool is_maskall_type(const TypeLong* type, int vlen);
+  static MaskAllVariant get_maskall_type(const TypeLong* type, int vlen);
   static bool is_muladds2i(const Node* n);
   static bool is_roundopD(Node* n);
   static bool is_scalar_rotate(Node* n);
