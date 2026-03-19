@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,8 @@ package compiler.c2.gvn;
 
 import compiler.lib.generators.Generator;
 import compiler.lib.generators.Generators;
+import compiler.lib.generators.LongRange;
 import compiler.lib.ir_framework.DontCompile;
-import compiler.lib.ir_framework.ForceInline;
 import compiler.lib.ir_framework.IR;
 import compiler.lib.ir_framework.IRNode;
 import compiler.lib.ir_framework.Run;
@@ -225,8 +225,8 @@ public class ModLNodeValueTests {
     private static final long LIMIT_6 = LONG_GEN.next();
     private static final long LIMIT_7 = LONG_GEN.next();
     private static final long LIMIT_8 = LONG_GEN.next();
-    private static final Range RANGE_1 = Range.generate(LONG_GEN);
-    private static final Range RANGE_2 = Range.generate(LONG_GEN);
+    private static final LongRange RANGE_1 = LongRange.generate(LONG_GEN);
+    private static final LongRange RANGE_2 = LongRange.generate(LONG_GEN);
 
     @Test
     public int testRandomLimits(long x, long y) {
@@ -264,29 +264,5 @@ public class ModLNodeValueTests {
         if (z > LIMIT_8) sum += 128;
 
         return sum;
-    }
-
-    record Range(long lo, long hi) {
-        Range {
-            if (lo > hi) {
-                throw new IllegalArgumentException("lo > hi");
-            }
-        }
-
-        @ForceInline
-        long clamp(long v) {
-            return Math.min(hi, Math.max(v, lo));
-        }
-
-        static Range generate(Generator<Long> g) {
-            var a = g.next();
-            var b = g.next();
-            if (a > b) {
-                var tmp = a;
-                a = b;
-                b = tmp;
-            }
-            return new Range(a, b);
-        }
     }
 }

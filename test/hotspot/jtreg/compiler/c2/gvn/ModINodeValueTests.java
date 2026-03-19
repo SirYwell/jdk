@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,10 @@
  */
 package compiler.c2.gvn;
 
-import compiler.lib.generators.Generator;
 import compiler.lib.generators.Generators;
+import compiler.lib.generators.IntRange;
 import compiler.lib.generators.RestrictableGenerator;
 import compiler.lib.ir_framework.DontCompile;
-import compiler.lib.ir_framework.ForceInline;
 import compiler.lib.ir_framework.IR;
 import compiler.lib.ir_framework.IRNode;
 import compiler.lib.ir_framework.Run;
@@ -225,8 +224,8 @@ public class ModINodeValueTests {
     private static final int LIMIT_6 = INT_GEN.next();
     private static final int LIMIT_7 = INT_GEN.next();
     private static final int LIMIT_8 = INT_GEN.next();
-    private static final Range RANGE_1 = Range.generate(INT_GEN);
-    private static final Range RANGE_2 = Range.generate(INT_GEN);
+    private static final IntRange RANGE_1 = IntRange.generate(INT_GEN);
+    private static final IntRange RANGE_2 = IntRange.generate(INT_GEN);
 
     @Test
     public int testRandomLimits(int x, int y) {
@@ -264,29 +263,5 @@ public class ModINodeValueTests {
         if (z > LIMIT_8) sum += 128;
 
         return sum;
-    }
-
-    record Range(int lo, int hi) {
-        Range {
-            if (lo > hi) {
-                throw new IllegalArgumentException("lo > hi");
-            }
-        }
-
-        @ForceInline
-        int clamp(int v) {
-            return Math.min(hi, Math.max(v, lo));
-        }
-
-        static Range generate(Generator<Integer> g) {
-            var a = g.next();
-            var b = g.next();
-            if (a > b) {
-                var tmp = a;
-                a = b;
-                b = tmp;
-            }
-            return new Range(a, b);
-        }
     }
 }

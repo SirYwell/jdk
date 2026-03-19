@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -358,8 +358,8 @@ public class XorINodeIdealizationTests {
         // constant with or without the xor
     }
 
-    private static final Range RANGE_1 = Range.generate(G.restricted(0, MAX_VALUE));
-    private static final Range RANGE_2 = Range.generate(G.restricted(0, MAX_VALUE));
+    private static final IntRange RANGE_1 = IntRange.generate(G.restricted(0, MAX_VALUE));
+    private static final IntRange RANGE_2 = IntRange.generate(G.restricted(0, MAX_VALUE));
     private static final int UPPER_BOUND = Integer.max(0, Integer.highestOneBit(RANGE_1.hi() | RANGE_2.hi()) * 2 - 1);
 
     private static final int LIMIT_1 = G.next();
@@ -419,28 +419,5 @@ public class XorINodeIdealizationTests {
         if (z > LIMIT_8) { sum += 128; }
 
         return sum;
-    }
-
-    record Range(int lo, int hi) {
-        Range {
-            if (lo > hi) {
-                throw new IllegalArgumentException("lo > hi");
-            }
-        }
-
-        int clamp(int v) {
-            return Math.min(hi, Math.max(v, lo));
-        }
-
-        static Range generate(Generator<Integer> g) {
-            var a = g.next();
-            var b = g.next();
-            if (a > b) {
-                var tmp = a;
-                a = b;
-                b = tmp;
-            }
-            return new Range(a, b);
-        }
     }
 }

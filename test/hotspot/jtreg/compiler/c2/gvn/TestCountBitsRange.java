@@ -25,6 +25,8 @@ package compiler.c2.gvn;
 
 import compiler.lib.generators.Generator;
 import compiler.lib.generators.Generators;
+import compiler.lib.generators.IntRange;
+import compiler.lib.generators.LongRange;
 import compiler.lib.generators.RestrictableGenerator;
 import compiler.lib.ir_framework.*;
 import java.util.function.Function;
@@ -502,42 +504,6 @@ public class TestCountBitsRange {
         randLong = RANGE_LONG.clamp(randLong);
         int result = Long.numberOfLeadingZeros(randLong);
         return getResultChecksum64(result);
-    }
-
-    record IntRange(int lo, int hi) {
-        IntRange {
-            if (lo > hi) {
-                throw new IllegalArgumentException("lo > hi");
-            }
-        }
-
-        @ForceInline
-        int clamp(int v) {
-            return v < lo ? lo : v > hi ? hi : v;
-        }
-
-        static IntRange generate(Generator<Integer> g) {
-            int a = g.next(), b = g.next();
-            return a < b ? new IntRange(a, b) : new IntRange(b, a);
-        }
-    }
-
-    record LongRange(long lo, long hi) {
-        LongRange {
-            if (lo > hi) {
-                throw new IllegalArgumentException("lo > hi");
-            }
-        }
-
-        @ForceInline
-        long clamp(long v) {
-            return v < lo ? lo : v > hi ? hi : v;
-        }
-
-        static LongRange generate(Generator<Long> g) {
-            long a = g.next(), b = g.next();
-            return a < b ? new LongRange(a, b) : new LongRange(b, a);
-        }
     }
 
     @ForceInline
