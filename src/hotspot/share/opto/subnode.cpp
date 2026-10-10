@@ -2013,10 +2013,30 @@ static const Type* reverse_bytes(int opcode, const Type* con) {
   switch (opcode) {
     // It is valid in bytecode to load any int and pass it to a method that expects a smaller type (i.e., short, char).
     // Let's cast the value to match the Java behavior.
-    case Op_ReverseBytesS:  return TypeInt::make(byteswap(static_cast<jshort>(con->is_int()->get_con())));
-    case Op_ReverseBytesUS: return TypeInt::make(byteswap(static_cast<jchar>(con->is_int()->get_con())));
-    case Op_ReverseBytesI:  return TypeInt::make(byteswap(con->is_int()->get_con()));
-    case Op_ReverseBytesL:  return TypeLong::make(byteswap(con->is_long()->get_con()));
+    case Op_ReverseBytesS: {
+        const KnownBits<juint> bits = con->is_int()->_bits;
+        const juint zeroes = byteswap(static_cast<jshort>(bits._zeros));
+        const juint ones = byteswap(static_cast<jshort>(bits._ones));
+        return TypeInt::make(TypeIntPrototype<jint, juint>{{min_jshort, max_jshort}, {0, max_juint}, {zeroes, ones}}, Type::WidenMin);
+      }
+    case Op_ReverseBytesUS: {
+        const KnownBits<juint> bits = con->is_int()->_bits;
+        const juint zeroes = byteswap(static_cast<jchar>(bits._zeros));
+        const juint ones = byteswap(static_cast<jchar>(bits._ones));
+        return TypeInt::make(TypeIntPrototype<jint, juint>{{0, max_jushort}, {0, max_jushort}, {zeroes, ones}}, Type::WidenMin);
+      }
+    case Op_ReverseBytesI: {
+        const KnownBits<juint> bits = con->is_int()->_bits;
+        const juint zeroes = byteswap(bits._zeros);
+        const juint ones = byteswap(bits._ones);
+        return TypeInt::make(TypeIntPrototype<jint, juint>{{min_jint, max_jint}, {0, max_juint}, {zeroes, ones}}, Type::WidenMin);
+      }
+    case Op_ReverseBytesL: {
+        const KnownBits<julong> bits = con->is_long()->_bits;
+        const julong zeroes = byteswap(bits._zeros);
+        const julong ones = byteswap(bits._ones);
+        return TypeLong::make(TypeIntPrototype<jlong, julong>{{min_jlong, max_jlong}, {0, max_julong}, {zeroes, ones}}, Type::WidenMin);
+      }
     default: ShouldNotReachHere();
   }
 }
@@ -2026,10 +2046,7 @@ const Type* ReverseBytesNode::Value(PhaseGVN* phase) const {
   if (type == Type::TOP) {
     return Type::TOP;
   }
-  if (type->singleton()) {
-    return reverse_bytes(Opcode(), type);
-  }
-  return bottom_type();
+  return reverse_bytes(Opcode(), type);
 }
 
 const Type* ReverseINode::Value(PhaseGVN* phase) const {
@@ -2037,12 +2054,11 @@ const Type* ReverseINode::Value(PhaseGVN* phase) const {
   if (t1 == Type::TOP) {
     return Type::TOP;
   }
-  const TypeInt* t1int = t1->isa_int();
-  if (t1int && t1int->is_con()) {
-    jint res = reverse_bits(t1int->get_con());
-    return TypeInt::make(res);
-  }
-  return bottom_type();
+
+  const TypeInt* t = t1->is_int();
+  const juint zeroes = reverse_bits(t->_bits._zeros);
+  const juint ones = reverse_bits(t->_bits._ones);
+  return TypeInt::make(TypeIntPrototype<jint, juint>{{min_jint, max_jint}, {0, max_juint}, {zeroes, ones}}, Type::WidenMin);
 }
 
 const Type* ReverseLNode::Value(PhaseGVN* phase) const {
@@ -2050,12 +2066,10 @@ const Type* ReverseLNode::Value(PhaseGVN* phase) const {
   if (t1 == Type::TOP) {
     return Type::TOP;
   }
-  const TypeLong* t1long = t1->isa_long();
-  if (t1long && t1long->is_con()) {
-    jlong res = reverse_bits(t1long->get_con());
-    return TypeLong::make(res);
-  }
-  return bottom_type();
+  const TypeLong* t = t1->is_long();
+  const julong zeroes = reverse_bits(t->_bits._zeros);
+  const julong ones = reverse_bits(t->_bits._ones);
+  return TypeLong::make(TypeIntPrototype<jlong, julong>{{min_jlong, max_jlong}, {0, max_julong}, {zeroes, ones}}, Type::WidenMin);
 }
 
 Node* ReverseINode::Identity(PhaseGVN* phase) {
